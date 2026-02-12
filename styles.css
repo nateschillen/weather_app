@@ -171,6 +171,17 @@ button:hover {
 }
 
 
+
+.summary-panel h2 {
+  margin-bottom: 0.45rem;
+}
+
+#ai-summary {
+  margin: 0;
+  line-height: 1.5;
+  color: #1f3857;
+}
+
 .tabs {
   display: inline-flex;
   gap: 0.35rem;
