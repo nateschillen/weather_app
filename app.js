@@ -288,6 +288,11 @@ function clearForecast() {
   dailyList.innerHTML = '';
 }
 
+function clearForecast() {
+  hourlyList.innerHTML = '';
+  dailyList.innerHTML = '';
+}
+
 function setActiveTab(tabName) {
   tabButtons.forEach((button) => {
     const isActive = button.dataset.tab === tabName;
