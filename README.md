@@ -1,6 +1,6 @@
 # US Weather Finder
 
-A simple client-side weather app that searches U.S. locations and shows hourly + daily forecasts from weather.gov.
+A simple client-side weather app that searches U.S. locations and shows hourly + daily forecasts from Open-Meteo.
 
 ## Run locally
 
