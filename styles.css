@@ -105,7 +105,8 @@ input {
   box-shadow: 0 10px 30px rgba(16, 37, 61, 0.18);
 }
 
-.autocomplete-list[hidden] {
+.autocomplete-list[hidden],
+.autocomplete-list:empty {
   display: none;
 }
 
