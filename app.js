@@ -52,6 +52,7 @@ let savedLocations = loadSavedLocations();
 let autocompleteTimer;
 
 renderSavedLocations();
+clearAutocomplete();
 
 searchForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -256,11 +257,13 @@ function renderDaily(periods) {
 }
 
 function renderAutocomplete(suggestions) {
-  autocompleteList.innerHTML = '';
+  clearAutocomplete();
 
   if (!suggestions.length) {
     return;
   }
+
+  autocompleteList.hidden = false;
 
   suggestions.forEach((suggestion) => {
     const option = document.createElement('li');
@@ -277,6 +280,12 @@ function renderAutocomplete(suggestions) {
 
 function clearAutocomplete() {
   autocompleteList.innerHTML = '';
+  autocompleteList.hidden = true;
+}
+
+function clearForecast() {
+  hourlyList.innerHTML = '';
+  dailyList.innerHTML = '';
 }
 
 function clearForecast() {
