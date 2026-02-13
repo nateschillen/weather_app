@@ -28,6 +28,29 @@
       <p id="status" role="status" aria-live="polite"></p>
     </section>
 
+    <section id="current-weather-panel" class="current-weather-panel" aria-live="polite" hidden>
+      <div class="current-weather-content">
+        <p class="eyebrow">Current conditions</p>
+        <h2 id="current-location-title">--</h2>
+        <p id="current-weather-type" class="current-weather-type">--</p>
+        <div class="current-weather-metrics">
+          <article>
+            <span>Temperature</span>
+            <strong id="current-temp">--</strong>
+          </article>
+          <article>
+            <span>Feels like</span>
+            <strong id="current-feels-like">--</strong>
+          </article>
+          <article>
+            <span>Humidity</span>
+            <strong id="current-humidity">--</strong>
+          </article>
+        </div>
+      </div>
+      <div class="weather-motion" aria-hidden="true"></div>
+    </section>
+
     <section class="saved-panel">
       <h2>Saved Locations</h2>
       <ul id="saved-locations"></ul>

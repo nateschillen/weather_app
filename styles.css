@@ -170,7 +170,173 @@ button:hover {
   min-width: 42px;
 }
 
+.current-weather-panel {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 1rem;
+  color: #f5fbff;
+  background: linear-gradient(120deg, #295adf, #1d4dbf);
+}
 
+.current-weather-content {
+  position: relative;
+  z-index: 2;
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.9;
+}
+
+#current-location-title {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.6vw, 1.8rem);
+}
+
+.current-weather-type {
+  margin: 0.3rem 0 0.9rem;
+  font-size: 1rem;
+  color: #d7e7ff;
+}
+
+.current-weather-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  gap: 0.65rem;
+}
+
+.current-weather-metrics article {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  padding: 0.55rem 0.65rem;
+}
+
+.current-weather-metrics span {
+  display: block;
+  font-size: 0.78rem;
+  color: #d6e8ff;
+}
+
+.current-weather-metrics strong {
+  font-size: 1.1rem;
+}
+
+.weather-motion {
+  position: absolute;
+  inset: 0;
+  opacity: 0.85;
+}
+
+.current-weather-panel.is-sunny {
+  background: linear-gradient(120deg, #2d62ec, #73b5ff);
+}
+
+.current-weather-panel.is-sunny .weather-motion {
+  background: radial-gradient(circle at 85% 25%, rgba(255, 235, 153, 0.85) 0 10%, rgba(255, 235, 153, 0) 35%);
+}
+
+.current-weather-panel.is-cloudy {
+  background: linear-gradient(120deg, #5f76a0, #8398bd);
+}
+
+.current-weather-panel.is-cloudy .weather-motion {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.38) 0 16%, transparent 17%),
+    radial-gradient(circle at 45% 25%, rgba(255, 255, 255, 0.3) 0 13%, transparent 14%),
+    radial-gradient(circle at 70% 20%, rgba(255, 255, 255, 0.35) 0 17%, transparent 18%);
+  animation: drift-clouds 13s linear infinite;
+}
+
+.current-weather-panel.is-rainy,
+.current-weather-panel.is-stormy {
+  background: linear-gradient(120deg, #2f446f, #1e2f53);
+}
+
+.current-weather-panel.is-rainy .weather-motion,
+.current-weather-panel.is-stormy .weather-motion {
+  background-image: repeating-linear-gradient(
+    120deg,
+    rgba(180, 214, 255, 0.05) 0,
+    rgba(180, 214, 255, 0.05) 6px,
+    rgba(255, 255, 255, 0.35) 6px,
+    rgba(255, 255, 255, 0.35) 9px,
+    transparent 9px,
+    transparent 18px
+  );
+  animation: rainfall 0.65s linear infinite;
+}
+
+.current-weather-panel.is-stormy .weather-motion::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.4);
+  opacity: 0;
+  animation: lightning 2.6s infinite;
+}
+
+.current-weather-panel.is-snowy {
+  background: linear-gradient(120deg, #5d80b1, #89a9d6);
+}
+
+.current-weather-panel.is-snowy .weather-motion {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.9) 0 2px, transparent 3px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.75) 0 2px, transparent 3px);
+  background-size: 36px 36px, 52px 52px;
+  background-position: 0 0, 20px 10px;
+  animation: snowfall 8s linear infinite;
+}
+
+@keyframes rainfall {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 0 40px;
+  }
+}
+
+@keyframes snowfall {
+  from {
+    background-position: 0 0, 20px 10px;
+  }
+
+  to {
+    background-position: 0 60px, 20px 80px;
+  }
+}
+
+@keyframes drift-clouds {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(18px);
+  }
+}
+
+@keyframes lightning {
+  0%,
+  88%,
+  100% {
+    opacity: 0;
+  }
+
+  90%,
+  92% {
+    opacity: 0.5;
+  }
+}
 
 .summary-panel h2 {
   margin-bottom: 0.45rem;
@@ -277,6 +443,10 @@ button:hover {
 @media (max-width: 620px) {
   .app {
     padding: 0.85rem;
+  }
+
+  .current-weather-metrics {
+    grid-template-columns: 1fr;
   }
 
   #weather-map {

@@ -11,6 +11,12 @@ const weatherMap = document.getElementById('weather-map');
 const autocompleteList = document.getElementById('autocomplete-list');
 const tabButtons = Array.from(document.querySelectorAll('.tab-button'));
 const aiSummary = document.getElementById('ai-summary');
+const currentWeatherPanel = document.getElementById('current-weather-panel');
+const currentLocationTitle = document.getElementById('current-location-title');
+const currentWeatherType = document.getElementById('current-weather-type');
+const currentTemp = document.getElementById('current-temp');
+const currentFeelsLike = document.getElementById('current-feels-like');
+const currentHumidity = document.getElementById('current-humidity');
 const tabPanels = {
   hourly: document.getElementById('hourly-panel'),
   daily: document.getElementById('daily-panel')
@@ -54,6 +60,7 @@ let autocompleteTimer;
 let activeTab = 'hourly';
 let latestHourlyPeriods = [];
 let latestDailyPeriods = [];
+let latestCurrentConditions = null;
 
 renderSavedLocations();
 clearAutocomplete();
@@ -122,11 +129,13 @@ async function searchAndRenderWeather(query) {
     updateMap(location.lat, location.lon);
 
     updateStatus('Loading forecast...');
-    const [hourlyPeriods, dailyPeriods] = await loadForecasts(location.lat, location.lon);
+    const [hourlyPeriods, dailyPeriods, currentConditions] = await loadForecasts(location.lat, location.lon);
 
     latestHourlyPeriods = hourlyPeriods;
     latestDailyPeriods = dailyPeriods;
+    latestCurrentConditions = currentConditions;
 
+    renderCurrentConditions(currentConditions);
     renderHourly(hourlyPeriods);
     renderDaily(dailyPeriods);
     updateAiSummary();
@@ -186,6 +195,7 @@ async function loadForecasts(lat, lon) {
   const weatherUrl =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
     '&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=auto' +
+    '&current=temperature_2m,relative_humidity_2m,weather_code,apparent_temperature' +
     '&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,weather_code,windspeed_10m,winddirection_10m' +
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max';
 
@@ -195,18 +205,30 @@ async function loadForecasts(lat, lon) {
   }
 
   const weatherData = await weatherResponse.json();
-  if (!weatherData.hourly || !weatherData.daily) {
+  if (!weatherData.hourly || !weatherData.daily || !weatherData.current) {
     throw new Error('Could not load forecast details. Please try another U.S. location.');
   }
 
-  const hourlyPeriods = weatherData.hourly.time.slice(0, 24).map((time, index) => ({
+  const currentConditions = {
+    time: weatherData.current.time,
+    weatherCode: weatherData.current.weather_code,
+    temperature: weatherData.current.temperature_2m,
+    feelsLike: weatherData.current.apparent_temperature,
+    humidity: weatherData.current.relative_humidity_2m
+  };
+
+  const startIndex = weatherData.hourly.time.findIndex((time) => time >= currentConditions.time);
+  const normalizedStart = startIndex === -1 ? 0 : startIndex;
+  const hourlyTimes = weatherData.hourly.time.slice(normalizedStart, normalizedStart + 24);
+
+  const hourlyPeriods = hourlyTimes.map((time, index) => ({
     startTime: time,
-    temperature: weatherData.hourly.temperature_2m[index],
-    humidity: weatherData.hourly.relative_humidity_2m[index],
-    precipitationProbability: weatherData.hourly.precipitation_probability[index],
-    weatherCode: weatherData.hourly.weather_code[index],
-    windSpeed: weatherData.hourly.windspeed_10m[index],
-    windDirection: formatWindDirection(weatherData.hourly.winddirection_10m[index])
+    temperature: weatherData.hourly.temperature_2m[normalizedStart + index],
+    humidity: weatherData.hourly.relative_humidity_2m[normalizedStart + index],
+    precipitationProbability: weatherData.hourly.precipitation_probability[normalizedStart + index],
+    weatherCode: weatherData.hourly.weather_code[normalizedStart + index],
+    windSpeed: weatherData.hourly.windspeed_10m[normalizedStart + index],
+    windDirection: formatWindDirection(weatherData.hourly.winddirection_10m[normalizedStart + index])
   }));
 
   const dailyPeriods = weatherData.daily.time.slice(0, 10).map((time, index) => ({
@@ -218,7 +240,25 @@ async function loadForecasts(lat, lon) {
     windSpeed: weatherData.daily.windspeed_10m_max[index]
   }));
 
-  return [hourlyPeriods, dailyPeriods];
+  return [hourlyPeriods, dailyPeriods, currentConditions];
+}
+
+function renderCurrentConditions(currentConditions) {
+  if (!currentLocation || !currentConditions) {
+    currentWeatherPanel.hidden = true;
+    return;
+  }
+
+  currentWeatherPanel.hidden = false;
+  currentLocationTitle.textContent = currentLocation.displayName;
+  currentWeatherType.textContent = describeWeather(currentConditions.weatherCode);
+  currentTemp.textContent = formatTemp(currentConditions.temperature);
+  currentFeelsLike.textContent = formatTemp(currentConditions.feelsLike);
+  currentHumidity.textContent = formatPercent(currentConditions.humidity);
+
+  const motionClass = weatherAnimationClass(currentConditions.weatherCode);
+  currentWeatherPanel.classList.remove('is-rainy', 'is-snowy', 'is-stormy', 'is-cloudy', 'is-sunny');
+  currentWeatherPanel.classList.add(motionClass);
 }
 
 function renderHourly(periods) {
@@ -296,7 +336,17 @@ function clearForecast() {
   dailyList.innerHTML = '';
   latestHourlyPeriods = [];
   latestDailyPeriods = [];
+  latestCurrentConditions = null;
+  currentWeatherPanel.hidden = true;
   updateAiSummary();
+}
+
+function weatherAnimationClass(weatherCode) {
+  if ([95, 96, 99].includes(weatherCode)) return 'is-stormy';
+  if ([61, 63, 65, 66, 67, 80, 81, 82, 51, 53, 55, 56, 57].includes(weatherCode)) return 'is-rainy';
+  if ([71, 73, 75, 77, 85, 86].includes(weatherCode)) return 'is-snowy';
+  if ([1, 2, 3, 45, 48].includes(weatherCode)) return 'is-cloudy';
+  return 'is-sunny';
 }
 
 function setActiveTab(tabName) {
