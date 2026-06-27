@@ -115,8 +115,14 @@ input {
   cursor: pointer;
 }
 
-.autocomplete-list li:hover {
+.autocomplete-list li:hover,
+.autocomplete-list li.active {
   background: var(--accent-weak);
+}
+
+.weather-icon {
+  font-style: normal;
+  margin-right: 0.15rem;
 }
 
 button {
@@ -138,6 +144,18 @@ button[type="submit"],
 
 button:hover {
   transform: translateY(-1px);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+  transform: none;
+}
+
+#use-location {
+  background: linear-gradient(120deg, #eef3ff, #dfeaff);
+  color: var(--accent);
+  border-color: var(--border);
 }
 
 #status {
@@ -207,7 +225,7 @@ button:hover {
 
 .current-weather-metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 0.65rem;
 }
 
@@ -446,7 +464,7 @@ button:hover {
   }
 
   .current-weather-metrics {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   #weather-map {

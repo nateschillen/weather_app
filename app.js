@@ -5,6 +5,7 @@ const forecastTitle = document.getElementById('forecast-title');
 const hourlyList = document.getElementById('hourly-list');
 const dailyList = document.getElementById('daily-list');
 const saveButton = document.getElementById('save-location');
+const useLocationButton = document.getElementById('use-location');
 const savedLocationsList = document.getElementById('saved-locations');
 const savedLocationTemplate = document.getElementById('saved-location-template');
 const weatherMap = document.getElementById('weather-map');
@@ -17,12 +18,47 @@ const currentWeatherType = document.getElementById('current-weather-type');
 const currentTemp = document.getElementById('current-temp');
 const currentFeelsLike = document.getElementById('current-feels-like');
 const currentHumidity = document.getElementById('current-humidity');
+const currentWind = document.getElementById('current-wind');
+const currentSunrise = document.getElementById('current-sunrise');
+const currentSunset = document.getElementById('current-sunset');
+const currentWeatherIcon = document.getElementById('current-weather-icon');
 const tabPanels = {
   hourly: document.getElementById('hourly-panel'),
   daily: document.getElementById('daily-panel')
 };
 
 const STORAGE_KEY = 'us-weather-saved-locations-v1';
+const LAST_LOCATION_KEY = 'us-weather-last-location-v1';
+const WEATHER_ICONS = {
+  0: '☀️',
+  1: '🌤️',
+  2: '⛅',
+  3: '☁️',
+  45: '🌫️',
+  48: '🌫️',
+  51: '🌦️',
+  53: '🌦️',
+  55: '🌧️',
+  56: '🌧️',
+  57: '🌧️',
+  61: '🌦️',
+  63: '🌧️',
+  65: '🌧️',
+  66: '🌧️',
+  67: '🌧️',
+  71: '🌨️',
+  73: '🌨️',
+  75: '❄️',
+  77: '🌨️',
+  80: '🌦️',
+  81: '🌧️',
+  82: '⛈️',
+  85: '🌨️',
+  86: '❄️',
+  95: '⛈️',
+  96: '⛈️',
+  99: '⛈️'
+};
 const WEATHER_CODES = {
   0: 'Clear sky',
   1: 'Mainly clear',
@@ -61,9 +97,12 @@ let activeTab = 'hourly';
 let latestHourlyPeriods = [];
 let latestDailyPeriods = [];
 let latestCurrentConditions = null;
+let autocompleteSuggestions = [];
+let activeSuggestionIndex = -1;
 
 renderSavedLocations();
 clearAutocomplete();
+restoreLastLocation();
 
 searchForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -89,6 +128,62 @@ saveButton.addEventListener('click', () => {
   persistSavedLocations();
   renderSavedLocations();
   updateStatus(`Saved ${currentLocation.displayName}.`);
+});
+
+useLocationButton.addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    updateStatus('Geolocation is not supported by this browser.');
+    return;
+  }
+
+  updateStatus('Detecting your location...');
+  useLocationButton.disabled = true;
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      try {
+        const { latitude, longitude } = position.coords;
+        const location = await reverseGeocode(latitude, longitude);
+        locationInput.value = location.displayName;
+        await renderWeatherForLocation(location);
+      } catch (error) {
+        updateStatus(error.message || 'Could not determine your location.');
+      } finally {
+        useLocationButton.disabled = false;
+      }
+    },
+    (error) => {
+      const message =
+        error.code === error.PERMISSION_DENIED
+          ? 'Location permission denied. Try searching instead.'
+          : 'Could not get your location. Try searching instead.';
+      updateStatus(message);
+      useLocationButton.disabled = false;
+    },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+  );
+});
+
+locationInput.addEventListener('keydown', (event) => {
+  if (autocompleteList.hidden || !autocompleteSuggestions.length) return;
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    setActiveSuggestion((activeSuggestionIndex + 1) % autocompleteSuggestions.length);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    setActiveSuggestion(
+      (activeSuggestionIndex - 1 + autocompleteSuggestions.length) % autocompleteSuggestions.length
+    );
+  } else if (event.key === 'Enter' && activeSuggestionIndex >= 0) {
+    event.preventDefault();
+    const suggestion = autocompleteSuggestions[activeSuggestionIndex];
+    locationInput.value = suggestion.displayName;
+    clearAutocomplete();
+    renderWeatherForLocation(suggestion);
+  } else if (event.key === 'Escape') {
+    clearAutocomplete();
+  }
 });
 
 locationInput.addEventListener('input', () => {
@@ -124,7 +219,16 @@ async function searchAndRenderWeather(query) {
     clearForecast();
 
     const location = await geocodeLocation(query);
+    await renderWeatherForLocation(location);
+  } catch (error) {
+    updateStatus(error.message || 'Something went wrong while loading weather data.');
+  }
+}
+
+async function renderWeatherForLocation(location) {
+  try {
     currentLocation = location;
+    persistLastLocation(location);
     forecastTitle.textContent = `${location.displayName} Weather Map`;
     updateMap(location.lat, location.lon);
 
@@ -143,6 +247,35 @@ async function searchAndRenderWeather(query) {
   } catch (error) {
     updateStatus(error.message || 'Something went wrong while loading weather data.');
   }
+}
+
+async function reverseGeocode(lat, lon) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=${lat}&lon=${lon}`;
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+
+  if (!response.ok) {
+    throw new Error('Unable to look up your location right now.');
+  }
+
+  const item = await response.json();
+  if (!item || !item.address || item.address.country_code !== 'us') {
+    throw new Error('Your location appears to be outside the U.S. Try searching instead.');
+  }
+
+  const state = item.address.state || item.address.region || '';
+  const city =
+    item.address.city ||
+    item.address.town ||
+    item.address.village ||
+    item.address.hamlet ||
+    item.address.county ||
+    (item.display_name || '').split(',')[0];
+
+  return {
+    displayName: state ? `${city}, ${state}` : city,
+    lat: Number(lat),
+    lon: Number(lon)
+  };
 }
 
 async function geocodeLocation(query) {
@@ -195,9 +328,9 @@ async function loadForecasts(lat, lon) {
   const weatherUrl =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
     '&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=auto' +
-    '&current=temperature_2m,relative_humidity_2m,weather_code,apparent_temperature' +
+    '&current=temperature_2m,relative_humidity_2m,weather_code,apparent_temperature,windspeed_10m,winddirection_10m' +
     '&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,weather_code,windspeed_10m,winddirection_10m' +
-    '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max';
+    '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,windspeed_10m_max,sunrise,sunset';
 
   const weatherResponse = await fetch(weatherUrl);
   if (!weatherResponse.ok) {
@@ -214,7 +347,11 @@ async function loadForecasts(lat, lon) {
     weatherCode: weatherData.current.weather_code,
     temperature: weatherData.current.temperature_2m,
     feelsLike: weatherData.current.apparent_temperature,
-    humidity: weatherData.current.relative_humidity_2m
+    humidity: weatherData.current.relative_humidity_2m,
+    windSpeed: weatherData.current.windspeed_10m,
+    windDirection: formatWindDirection(weatherData.current.winddirection_10m),
+    sunrise: weatherData.daily.sunrise ? weatherData.daily.sunrise[0] : null,
+    sunset: weatherData.daily.sunset ? weatherData.daily.sunset[0] : null
   };
 
   const startIndex = weatherData.hourly.time.findIndex((time) => time >= currentConditions.time);
@@ -251,10 +388,14 @@ function renderCurrentConditions(currentConditions) {
 
   currentWeatherPanel.hidden = false;
   currentLocationTitle.textContent = currentLocation.displayName;
-  currentWeatherType.textContent = describeWeather(currentConditions.weatherCode);
+  currentWeatherIcon.textContent = describeWeatherIcon(currentConditions.weatherCode);
+  currentWeatherType.lastChild.textContent = ` ${describeWeather(currentConditions.weatherCode)}`;
   currentTemp.textContent = formatTemp(currentConditions.temperature);
   currentFeelsLike.textContent = formatTemp(currentConditions.feelsLike);
   currentHumidity.textContent = formatPercent(currentConditions.humidity);
+  currentWind.textContent = `${formatNumber(currentConditions.windSpeed)} mph ${currentConditions.windDirection}`;
+  currentSunrise.textContent = formatTime(currentConditions.sunrise);
+  currentSunset.textContent = formatTime(currentConditions.sunset);
 
   const motionClass = weatherAnimationClass(currentConditions.weatherCode);
   currentWeatherPanel.classList.remove('is-rainy', 'is-snowy', 'is-stormy', 'is-cloudy', 'is-sunny');
@@ -272,7 +413,7 @@ function renderHourly(periods) {
         <strong>${formatDateTime(period.startTime)}</strong>
         <span class="temp-pill">${formatTemp(period.temperature)}</span>
       </header>
-      <p class="forecast-text">${describeWeather(period.weatherCode)}</p>
+      <p class="forecast-text"><span class="weather-icon">${describeWeatherIcon(period.weatherCode)}</span> ${describeWeather(period.weatherCode)}</p>
       <div class="metric-grid">
         <div><span>Humidity</span><strong>${formatPercent(period.humidity)}</strong></div>
         <div><span>Rain chance</span><strong>${formatPercent(period.precipitationProbability)}</strong></div>
@@ -294,7 +435,7 @@ function renderDaily(periods) {
         <strong>${period.name}</strong>
         <span class="temp-pill">H ${formatTemp(period.highTemp)} / L ${formatTemp(period.lowTemp)}</span>
       </header>
-      <p class="forecast-text">${describeWeather(period.weatherCode)}</p>
+      <p class="forecast-text"><span class="weather-icon">${describeWeatherIcon(period.weatherCode)}</span> ${describeWeather(period.weatherCode)}</p>
       <div class="metric-grid">
         <div><span>Rain chance</span><strong>${formatPercent(period.precipitationProbability)}</strong></div>
         <div><span>Max wind</span><strong>${formatNumber(period.windSpeed)} mph</strong></div>
@@ -311,24 +452,36 @@ function renderAutocomplete(suggestions) {
     return;
   }
 
+  autocompleteSuggestions = suggestions;
   autocompleteList.hidden = false;
 
-  suggestions.forEach((suggestion) => {
+  suggestions.forEach((suggestion, index) => {
     const option = document.createElement('li');
     option.textContent = suggestion.displayName;
     option.role = 'option';
+    option.addEventListener('mouseenter', () => setActiveSuggestion(index));
     option.addEventListener('mousedown', () => {
       locationInput.value = suggestion.displayName;
       clearAutocomplete();
-      searchAndRenderWeather(suggestion.displayName);
+      renderWeatherForLocation(suggestion);
     });
     autocompleteList.appendChild(option);
+  });
+}
+
+function setActiveSuggestion(index) {
+  activeSuggestionIndex = index;
+  Array.from(autocompleteList.children).forEach((option, i) => {
+    option.classList.toggle('active', i === index);
+    option.setAttribute('aria-selected', String(i === index));
   });
 }
 
 function clearAutocomplete() {
   autocompleteList.innerHTML = '';
   autocompleteList.hidden = true;
+  autocompleteSuggestions = [];
+  activeSuggestionIndex = -1;
 }
 
 function clearForecast() {
@@ -372,6 +525,15 @@ function updateMap(lat, lon) {
 
 function describeWeather(code) {
   return WEATHER_CODES[code] || 'Forecast unavailable';
+}
+
+function describeWeatherIcon(code) {
+  return WEATHER_ICONS[code] || '🌡️';
+}
+
+function formatTime(isoDate) {
+  if (!isoDate) return '--';
+  return new Date(isoDate).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 function formatPercent(value) {
@@ -527,6 +689,28 @@ function loadSavedLocations() {
 
 function persistSavedLocations() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(savedLocations));
+}
+
+function persistLastLocation(location) {
+  try {
+    localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify(location));
+  } catch {
+    /* storage may be unavailable; ignore */
+  }
+}
+
+function restoreLastLocation() {
+  let lastLocation;
+  try {
+    lastLocation = JSON.parse(localStorage.getItem(LAST_LOCATION_KEY));
+  } catch {
+    lastLocation = null;
+  }
+
+  if (lastLocation && lastLocation.displayName && Number.isFinite(lastLocation.lat) && Number.isFinite(lastLocation.lon)) {
+    locationInput.value = lastLocation.displayName;
+    renderWeatherForLocation(lastLocation);
+  }
 }
 
 function renderSavedLocations() {
