@@ -2,6 +2,16 @@
 
 A simple client-side weather app that searches U.S. locations and shows hourly + daily forecasts from Open-Meteo.
 
+## Features
+
+- **Location search** with type-ahead autocomplete (keyboard navigable with arrow keys / Enter / Escape).
+- **Use My Location** — one tap to detect your position via the browser and load local weather.
+- **Current conditions** with weather icons, temperature, feels-like, humidity, wind, and sunrise/sunset.
+- **Hourly & daily forecasts** in a tabbed view, each card showing an at-a-glance weather icon.
+- **Live radar map** centered on the searched location (Windy embed).
+- **Plain-language weather summary** with activity and clothing recommendations.
+- **Saved locations** persisted in your browser, plus automatic recall of your last viewed location.
+
 ## Run locally
 
 ```bash

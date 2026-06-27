@@ -22,6 +22,7 @@
             <ul id="autocomplete-list" class="autocomplete-list" role="listbox" hidden></ul>
           </div>
           <button type="submit">Search</button>
+          <button type="button" id="use-location">📍 Use My Location</button>
           <button type="button" id="save-location">Save Location</button>
         </div>
       </form>
@@ -32,7 +33,7 @@
       <div class="current-weather-content">
         <p class="eyebrow">Current conditions</p>
         <h2 id="current-location-title">--</h2>
-        <p id="current-weather-type" class="current-weather-type">--</p>
+        <p id="current-weather-type" class="current-weather-type"><span id="current-weather-icon" class="weather-icon"></span>--</p>
         <div class="current-weather-metrics">
           <article>
             <span>Temperature</span>
@@ -45,6 +46,18 @@
           <article>
             <span>Humidity</span>
             <strong id="current-humidity">--</strong>
+          </article>
+          <article>
+            <span>Wind</span>
+            <strong id="current-wind">--</strong>
+          </article>
+          <article>
+            <span>Sunrise</span>
+            <strong id="current-sunrise">--</strong>
+          </article>
+          <article>
+            <span>Sunset</span>
+            <strong id="current-sunset">--</strong>
           </article>
         </div>
       </div>
